@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 90" width="100%" height="100%" class="select-none">
+  <defs>
+    <!-- Sharp crisp rendering -->
+    <filter id="shadow" x="-5%" y="-5%" width="110%" height="110%">
+      <feDropShadow dx="0" dy="1" stdDeviation="1" flood-opacity="0.15"/>
+    </filter>
+  </defs>
+  
+  <!-- Outer P (Blue stroke modern outline) -->
+  <g fill="none" stroke="#003366" stroke-width="8" stroke-linecap="round" stroke-linejoin="round">
+    <!-- P stem & loop -->
+    <path d="M 16 80 L 16 16 L 56 16 C 74 16 86 26 86 42 C 86 58 74 68 56 68 L 16 68" />
+  </g>
+
+  <!-- Middle M (Vibrant Red-Orange, solid sharp block form) -->
+  <g fill="#E63946">
+    <path d="M 94 80 L 94 16 L 118 16 L 140 54 L 162 16 L 186 16 L 186 80 L 164 80 L 164 42 L 146 72 L 134 72 L 116 42 L 116 80 Z" />
+  </g>
+
+  <!-- Outer C (Blue stroke modern outline) -->
+  <g fill="none" stroke="#003366" stroke-width="8" stroke-linecap="round" stroke-linejoin="round">
+    <!-- C arc -->
+    <path d="M 270 28 C 256 16 234 16 220 16 C 196 16 178 32 178 52 C 178 72 196 84 220 84 C 242 84 260 76 270 60" />
+  </g>
+
+  <!-- Center Organization Subtitle Badge -->
+  <text x="200" y="82" font-family="'Segoe UI', -apple-system, Roboto, sans-serif" font-weight="900" font-size="28" fill="#003366" letter-spacing="2">PMC</text>
+</svg>

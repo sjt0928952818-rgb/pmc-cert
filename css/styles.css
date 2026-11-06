@@ -1,0 +1,76 @@
+/* Custom styles for PMC Certificate Portal */
+
+/* Smooth scroll & layout polish */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Certificate Watermark styling with PMC branding */
+.cert-card-bg {
+  position: relative;
+  overflow: hidden;
+}
+
+.cert-card-bg::before {
+  content: "PMC OFFICIAL VERIFIED";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-25deg);
+  font-size: 3.2rem;
+  font-weight: 900;
+  color: rgba(0, 51, 102, 0.04);
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 0;
+  user-select: none;
+  letter-spacing: 0.1em;
+}
+
+/* Status Badge Styles */
+.badge-valid {
+  background-color: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+}
+
+.badge-expired {
+  background-color: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+
+.badge-revoked {
+  background-color: #f3f4f6;
+  color: #4b5563;
+  border: 1px solid #d1d5db;
+}
+
+.badge-suspended {
+  background-color: #fffbeb;
+  color: #b45309;
+  border: 1px solid #fde68a;
+}
+
+/* Drag & Drop Highlight with PMC Accent */
+.drag-active {
+  border-color: #0070ba !important;
+  background-color: #f0f7ff !important;
+}
+
+/* Animation utilities */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Toast styling */
+.toast {
+  pointer-events: auto;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  animation: fadeIn 0.2s ease-out;
+}
