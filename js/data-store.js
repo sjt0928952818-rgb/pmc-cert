@@ -2,16 +2,20 @@
  * Data Management & Store for PMC Certificate Verification
  * Multi-Industry Scope: Medical Devices, Energy Storage, Industrial Cybersecurity, 
  * Semiconductor Systems, Advanced Machinery, and Electrical/Electronic Devices.
+ * 
+ * Supports:
+ * 1. Live Google Sheets Backend Sync (Central Cloud Source)
+ * 2. Instant Local Browser Caching (Offline Resilience)
  */
 
-const STORAGE_KEY = 'pmc_cert_records_v3';
+const STORAGE_KEY = 'pmc_cert_records_v4';
 const API_KEY_STORAGE = 'certiverify_gemini_key';
 const GAS_ENDPOINT_STORAGE = 'certiverify_gas_url';
 
 // User's active Google Apps Script API Endpoint bound to gws-n3@pmc.org.tw
 const DEFAULT_GAS_ENDPOINT = 'https://script.google.com/macros/s/AKfycbxTk0NZsNACw3NpIE9sOmcz_YzzbzDYaYsRvIBdBvLx8z29kdZPNRtq4PzM7V8Pf01Nnw/exec';
 
-// Multi-Industry sample certificates representing PMC's comprehensive conformity scopes
+// Initial sample certificates representing PMC's comprehensive conformity scopes
 const INITIAL_CERTIFICATES = [
   {
     id: 'pmc_med_1',
@@ -82,19 +86,20 @@ const INITIAL_CERTIFICATES = [
 
 class CertificateStore {
   constructor() {
-    this.records = this.loadRecords();
+    this.records = this.loadLocalRecords();
+    // Silently fetch and sync the latest central Google Sheets database on launch
+    this.syncFromGoogleSheets();
   }
 
-  loadRecords() {
+  loadLocalRecords() {
     try {
       const data = localStorage.getItem(STORAGE_KEY);
       if (data) {
         return JSON.parse(data);
       }
     } catch (e) {
-      console.warn('Failed to load from local storage, loading defaults:', e);
+      console.warn('Failed to load local storage:', e);
     }
-    this.saveToStorage(INITIAL_CERTIFICATES);
     return [...INITIAL_CERTIFICATES];
   }
 
@@ -106,6 +111,59 @@ class CertificateStore {
     }
   }
 
+  /**
+   * Pulls central records from gws-n3@pmc.org.tw Google Sheet
+   * Ensures every computer and client always sees the latest certificates!
+   */
+  async syncFromGoogleSheets() {
+    const gasUrl = localStorage.getItem(GAS_ENDPOINT_STORAGE) || DEFAULT_GAS_ENDPOINT;
+    if (!gasUrl) return;
+
+    try {
+      const res = await fetch(gasUrl);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.results && data.results.length > 0) {
+          // Merge Google Sheets data with default samples, Sheet records take precedence
+          const sheetRecords = data.results.map((r, idx) => ({
+            id: r.id || ('pmc_sheet_' + idx),
+            certNumber: r.certNumber || '',
+            companyName: r.companyName || '',
+            productName: r.productName || '',
+            modelNumber: r.modelNumber || '',
+            standards: r.standards || '',
+            issueDate: r.issueDate || '',
+            expiryDate: r.expiryDate || '',
+            status: r.status || 'Valid',
+            issuer: r.issuer || 'Precision Machinery Research & Development Center (PMC)',
+            fileDriveUrl: r.fileDriveUrl || '',
+            updatedAt: r.updatedAt || new Date().toISOString()
+          }));
+
+          // Merge: Keep sheet records + any initial samples not in sheet
+          const merged = [...sheetRecords];
+          INITIAL_CERTIFICATES.forEach(init => {
+            const exists = merged.some(m => m.certNumber.toLowerCase() === init.certNumber.toLowerCase());
+            if (!exists) {
+              merged.push(init);
+            }
+          });
+
+          this.records = merged;
+          this.saveToStorage(this.records);
+
+          // If table or UI exists, trigger live refresh
+          if (typeof refreshRegistryTable === 'function') {
+            refreshRegistryTable();
+          }
+          console.log(`Synced ${sheetRecords.length} certificates from central Google Sheets.`);
+        }
+      }
+    } catch (err) {
+      console.warn('Background sync from Google Sheets failed (using local cache):', err);
+    }
+  }
+
   getAll() {
     return [...this.records];
   }
@@ -114,18 +172,81 @@ class CertificateStore {
     return this.records.find(item => item.id === id);
   }
 
-  search(keyword) {
+  /**
+   * Universal Search:
+   * 1. Search local memory cache instantly
+   * 2. Also queries central Google Sheet API in real-time
+   */
+  async searchOnlineAndLocal(keyword) {
     if (!keyword) return [];
     const term = keyword.trim().toLowerCase();
 
-    return this.records.filter(cert => {
-      const matchCertNo = cert.certNumber.toLowerCase().includes(term);
-      const matchCompany = cert.companyName.toLowerCase().includes(term);
-      const matchProduct = cert.productName.toLowerCase().includes(term);
-      const matchModel = cert.modelNumber.toLowerCase().includes(term);
-      const matchStandards = cert.standards.toLowerCase().includes(term);
+    // 1. Instant match from current memory
+    let localMatches = this.records.filter(cert => {
+      const matchCertNo = String(cert.certNumber || '').toLowerCase().includes(term);
+      const matchCompany = String(cert.companyName || '').toLowerCase().includes(term);
+      const matchProduct = String(cert.productName || '').toLowerCase().includes(term);
+      const matchModel = String(cert.modelNumber || '').toLowerCase().includes(term);
+      const matchStandards = String(cert.standards || '').toLowerCase().includes(term);
       return matchCertNo || matchCompany || matchProduct || matchModel || matchStandards;
     });
+
+    // 2. Query central Google Sheets API directly for fresh data
+    const gasUrl = localStorage.getItem(GAS_ENDPOINT_STORAGE) || DEFAULT_GAS_ENDPOINT;
+    if (gasUrl) {
+      try {
+        const queryUrl = `${gasUrl}?q=${encodeURIComponent(term)}`;
+        const res = await fetch(queryUrl);
+        if (res.ok) {
+          const json = await res.json();
+          if (json && json.results && json.results.length > 0) {
+            json.results.forEach(cloudCert => {
+              const formatted = {
+                id: cloudCert.id || 'sheet_' + cloudCert.certNumber,
+                certNumber: cloudCert.certNumber || '',
+                companyName: cloudCert.companyName || '',
+                productName: cloudCert.productName || '',
+                modelNumber: cloudCert.modelNumber || '',
+                standards: cloudCert.standards || '',
+                issueDate: cloudCert.issueDate || '',
+                expiryDate: cloudCert.expiryDate || '',
+                status: cloudCert.status || 'Valid',
+                issuer: cloudCert.issuer || 'Precision Machinery Research & Development Center (PMC)',
+                fileDriveUrl: cloudCert.fileDriveUrl || '',
+                updatedAt: cloudCert.updatedAt || new Date().toISOString()
+              };
+
+              // Update in local records if not present
+              const existIdx = localMatches.findIndex(m => m.certNumber.toLowerCase() === formatted.certNumber.toLowerCase());
+              if (existIdx >= 0) {
+                localMatches[existIdx] = formatted;
+              } else {
+                localMatches.unshift(formatted);
+              }
+
+              // Update overall store
+              this.upsertLocalOnly(formatted);
+            });
+          }
+        }
+      } catch (e) {
+        console.warn('Real-time Google Sheet query error (fallback to local cache):', e);
+      }
+    }
+
+    return localMatches;
+  }
+
+  upsertLocalOnly(certData) {
+    const existingIndex = this.records.findIndex(c => 
+      c.certNumber.toLowerCase() === certData.certNumber.toLowerCase()
+    );
+    if (existingIndex >= 0) {
+      this.records[existingIndex] = { ...this.records[existingIndex], ...certData };
+    } else {
+      this.records.unshift(certData);
+    }
+    this.saveToStorage(this.records);
   }
 
   upsert(certData) {
@@ -154,6 +275,7 @@ class CertificateStore {
     }
 
     this.saveToStorage(this.records);
+    // Push updates immediately to central Google Sheets
     this.syncToGoogleSheets(updatedRecord);
 
     return updatedRecord;
@@ -194,9 +316,9 @@ class CertificateStore {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      console.log('Background sync to PMC Google Sheets triggered for:', record.certNumber);
+      console.log('Central sync to PMC Google Sheets triggered for:', record.certNumber);
     } catch (err) {
-      console.warn('Failed to background sync to Google Sheets:', err);
+      console.warn('Failed to sync to Google Sheets:', err);
     }
   }
 }

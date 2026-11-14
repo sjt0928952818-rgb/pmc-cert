@@ -155,13 +155,23 @@ function setQuickSearch(val) {
   executeSearch(val);
 }
 
-function executeSearch(keyword) {
+async function executeSearch(keyword) {
   if (!keyword) return;
 
   const resultsSection = document.getElementById('search-results-section');
   resultsSection.classList.remove('hidden');
 
-  const matches = window.certStore.search(keyword);
+  // Loading indicator for real-time cloud search
+  resultsSection.innerHTML = `
+    <div class="bg-white rounded-2xl border border-slate-200 p-8 text-center shadow-md animate-fade-in">
+      <div class="w-10 h-10 mx-auto border-3 border-pmc-blue border-t-transparent rounded-full animate-spin mb-3"></div>
+      <p class="text-sm font-semibold text-slate-700">Connecting to PMC Central Registry Database...</p>
+      <p class="text-xs text-slate-400 mt-1">Verifying authenticity with central cloud records</p>
+    </div>
+  `;
+
+  // Query both local cache and central Google Sheets database in real-time
+  const matches = await window.certStore.searchOnlineAndLocal(keyword);
 
   if (matches.length === 0) {
     resultsSection.innerHTML = `
@@ -190,7 +200,10 @@ function executeSearch(keyword) {
             <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
             <span class="text-sm font-semibold text-slate-700">Found ${matches.length} matching certificate record(s)</span>
           </div>
-          <span class="text-xs text-slate-400">Official Database Match</span>
+          <span class="text-xs text-slate-400 flex items-center gap-1">
+            <i data-lucide="cloud-check" class="w-3.5 h-3.5 text-emerald-600"></i>
+            Live Central Database Match
+          </span>
         </div>
         ${cardsHtml}
       </div>
